@@ -8,12 +8,15 @@ function laplace(b) {
 function tally(ballots) {
   const byOption = new Map();
   for (const b of ballots) {
-    const cur = byOption.get(b.option_key) || { raw: 0, weighted: 0, confidence: 0, experienced: 0, adopted: 0 };
+    const cur = byOption.get(b.option_key) || { raw: 0, counted: 0, weighted: 0, confidence: 0, experienced: 0, adopted: 0 };
     cur.raw += 1;
-    cur.weighted += b.weight || 1;
-    cur.confidence += b.confidence || 0;
-    if ((b.experience_claim || []).length) cur.experienced += 1;
-    if (b.adopted) cur.adopted += 1;
+    if (!b.suppressed) {
+      cur.counted += 1;
+      cur.weighted += b.weight || 1;
+      cur.confidence += b.confidence || 0;
+      if ((b.experience_claim || []).length) cur.experienced += 1;
+      if (b.adopted) cur.adopted += 1;
+    }
     byOption.set(b.option_key, cur);
   }
   const totalRaw = ballots.length;
@@ -24,7 +27,7 @@ function tally(ballots) {
     raw_share: totalRaw ? Number((v.raw / totalRaw).toFixed(3)) : 0,
     weighted: Number(v.weighted.toFixed(2)),
     weighted_share: Number((v.weighted / totalWeighted).toFixed(3)),
-    avg_confidence: v.raw ? Math.round(v.confidence / v.raw) : 0,
+    avg_confidence: v.counted ? Math.round(v.confidence / v.counted) : 0,
     experienced: v.experienced,
     adopted: v.adopted,
   })).sort((a, b) => b.weighted - a.weighted);

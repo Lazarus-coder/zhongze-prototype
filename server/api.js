@@ -124,7 +124,8 @@ function detail(store, id, viewer) {
   const ballots = store.ballotsOf(d.id);
   const isAuthor = viewer && viewer.pid === d.author_pid;
   const axes = (d.axes || []).map((a) => AXE_LIBRARY[a.id] || { id: a.id, label: a.id, hint: '' });
-  const rows = stats.tally(ballots);
+  const rows = stats.tally(store.db.ballots.filter((b) => b.dilemma_id === d.id));
+  const rawTotal = rows.reduce((s, r) => s + r.raw, 0);
   const pol = stats.polarization(rows);
   const matrix = stats.axisMatrix(ballots, axes, d.options);
   const suggested = crowdWeights(ballots, axes, d.options);
@@ -170,7 +171,7 @@ function detail(store, id, viewer) {
       accepted_ballot_ids: d.accepted_ballot_ids,
       matching: { eligible_voters: matching.countMatchingVoters(d, store.db.personas).eligible, experienced_share: ballots.length ? Number((ballots.filter((b) => (b.experience_claim || []).length).length / ballots.length).toFixed(2)) : 0 },
     },
-    stats: { n: ballots.length, rows, polarization: pol, ci95: rows.length ? stats.wilson(rows[0].raw, ballots.length) : null, weight_explain: stats.weightExplain(ballots, store.db.personas) },
+    stats: { n: ballots.length, rows, polarization: pol, ci95: rows.length ? stats.wilson(rows[0].raw, rawTotal) : null, weight_explain: stats.weightExplain(ballots, store.db.personas) },
     clusters,
     matrix,
     utility: baseUtility,
@@ -255,7 +256,7 @@ function castBallot(store, viewer, dilemmaId, input) {
     return nb;
   })() : store.addBallot(d, payload);
   const flags = moderation.anomalyReport(store.ballotsOf(dilemmaId), store.db.personas).filter((f) => f.pid === viewer.pid || f.key && f.key.includes(viewer.pid));
-  return { ballot: publicBallot(store, ballot), anomaly: flags, stats: stats.tally(store.ballotsOf(dilemmaId)) };
+  return { ballot: publicBallot(store, ballot), anomaly: flags, stats: stats.tally(store.db.ballots.filter((b) => b.dilemma_id === dilemmaId)) };
 }
 
 function governance(store) {

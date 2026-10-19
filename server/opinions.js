@@ -46,7 +46,8 @@ function vec(map, idfMap) {
   const out = new Map();
   let norm = 0;
   for (const [t, c] of map) {
-    const w = (1 + Math.log(c)) * (idfMap.get(t) || Math.log(1 + idfMap.size));
+    if (!idfMap.has(t)) continue;
+    const w = (1 + Math.log(c)) * idfMap.get(t);
     out.set(t, w);
     norm += w * w;
   }
