@@ -1,0 +1,14 @@
+{
+  "name": "zhongze-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "匿名群体决策社交 App 可运行原型（零依赖 Node 标准库服务端 + 无构建前端）",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "QZ_RESET=1 node server/index.js",
+    "test": "node test/smoke.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
