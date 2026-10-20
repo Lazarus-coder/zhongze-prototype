@@ -159,7 +159,7 @@ const routes = {
     if (!q || !me || store.db.dilemmas[q.dilemma_id].author_pid !== me.pid) return send(res, 403, { error: 'author_only' });
     send(res, 200, { question: store.answerQuestion(params.id, body.answer) });
   },
-  'POST /api/reports': (req, res, body) => {
+  'POST /api/reports': (req, res, params, body) => {
     const me = viewer(req);
     if (!me) return send(res, 401, { error: 'no_persona' });
     send(res, 201, { report: store.report(body.target, body.reason, me.pid), jury: store.db.jury[store.db.jury.length - 1] });
@@ -219,8 +219,14 @@ function matchRoute(method, pathname) {
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png' };
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
-  const pathname = url.pathname;
+  let pathname;
+  let hit;
+  try {
+    pathname = new URL(req.url, 'http://localhost').pathname;
+    if (pathname.startsWith('/api/')) hit = matchRoute(req.method, pathname);
+  } catch (err) {
+    return send(res, 400, { error: 'bad_path' });
+  }
 
   if (pathname === '/api/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'access-control-allow-origin': '*' });
@@ -235,7 +241,6 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname.startsWith('/api/')) {
-    const hit = matchRoute(req.method, pathname);
     if (!hit) return send(res, 404, { error: 'no_route', pathname });
     let body = {};
     if (req.method !== 'GET') {

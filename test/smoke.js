@@ -192,7 +192,10 @@ async function main() {
     check('ops 批准后恢复推流', approve.json.status === 'open', approve.json);
 
     console.log('\n[6] 审核治理：举报 → 陪审团 → 审计');
-    const rep = await req('POST', '/api/reports', { pid: otherPersona.json.pid, body: { target: trial.json.dilemma.id, reason: '这个帖子在引导网暴特定同事，希望下架' } });
+    const reportBody = { target: trial.json.dilemma.id, reason: '这个帖子在引导网暴特定同事，希望下架' };
+    const rep = await req('POST', '/api/reports', { pid: otherPersona.json.pid, body: reportBody });
+    check('举报保留请求中的对象、理由和举报人', rep.status === 201 && rep.json.report.target === reportBody.target && rep.json.report.reason === reportBody.reason && rep.json.report.by_pid === otherPersona.json.pid, rep.json.report);
+    check('陪审案件关联同一举报对象与理由', rep.json.jury.target === reportBody.target && rep.json.jury.reason === reportBody.reason && rep.json.jury.report_id === rep.json.report.id, rep.json.jury);
     check('举报生成判例与规则引用', rep.json.jury && rep.json.jury.rule && rep.json.jury.rule.public, rep.json.jury);
     const votersForJury = [otherPersona.json.pid];
     for (let i = 0; i < 5; i += 1) {
@@ -205,6 +208,8 @@ async function main() {
       juryCase = vr.json;
     }
     check('陪审团 5 人裁决并生效', juryCase.status === 'removed' && juryCase.votes.length === 5, juryCase);
+    const removed = await req('GET', '/api/dilemmas/' + reportBody.target, { pid });
+    check('移除裁决实际归档被举报帖子', removed.status === 200 && removed.json.dilemma.status === 'archived', removed.json.dilemma.status);
     const gov = await req('GET', '/api/governance', { role: 'ops' });
     check('治理台含分级分布/异常/审计', gov.json.distribution && gov.json.anomalies !== undefined && gov.json.audit.length > 0, gov.json && Object.keys(gov.json));
     check('治理台披露密钥版本与 k-匿名参数', gov.json.key_version >= 1 && gov.json.privacy.k_min >= 8, gov.json.privacy);
@@ -219,6 +224,18 @@ async function main() {
 
     const feedAfter = await req('GET', '/api/feed?limit=12', { pid });
     check('自己的帖出现在自己的推荐流 own 位', feedAfter.json.items.some((i) => i.role === 'own'), feedAfter.json.items.filter((i) => i.role === 'own').map((i) => i.title));
+
+    console.log('\n[8] HTTP 路径解析与服务存活');
+    const encodedDetail = await req('GET', '/api/dilemmas/' + pub.json.dilemma.id.replace('D', '%44'), { pid });
+    check('合法编码的路径参数仍可访问原帖子', encodedDetail.status === 200 && encodedDetail.json.dilemma.id === pub.json.dilemma.id, encodedDetail.json.dilemma);
+    const missingRoute = await req('GET', '/api/not-a-route');
+    check('未知 API 路径仍返回 404', missingRoute.status === 404 && missingRoute.json.error === 'no_route', missingRoute.json);
+    for (const badPath of ['/api/dilemmas/%', '/api/dilemmas/%GG', '/api/dilemmas/%FF', '//%', '//[']) {
+      const bad = await req('GET', badPath);
+      check('非法路径返回 400：' + badPath, bad.status === 400 && bad.json && bad.json.error === 'bad_path', bad);
+      const alive = await req('GET', '/api/analytics');
+      check('非法路径后同一服务仍可响应：' + badPath, alive.status === 200 && child.exitCode === null && child.signalCode === null, alive.status);
+    }
   } catch (err) {
     failed += 1;
     failures.push('exception');

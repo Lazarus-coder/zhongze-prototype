@@ -6,7 +6,7 @@
 
 ![Node](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=node.js&logoColor=white)
 ![deps](https://img.shields.io/badge/third--party_deps-0-2ea44f?style=flat-square)
-![tests](https://img.shields.io/badge/%E5%86%92%E7%83%9F%E6%96%AD%E8%A8%80-66%2F68-d29922?style=flat-square)
+![tests](https://img.shields.io/badge/%E5%86%92%E7%83%9F%E6%96%AD%E8%A8%80-83%2F83-brightgreen?style=flat-square)
 ![status](https://img.shields.io/badge/status-prototype-blue?style=flat-square)
 
 <p align="center">
@@ -35,7 +35,7 @@
 ## 仓库现状
 
 - 前端（`web/`）**未包含**在本仓库中；`server/index.js` 已预留静态目录与 MIME 映射，接入前端即可跑通完整闭环。
-- 冒烟测试 68 项，当前 **66 通过 / 2 已知未通过**（见文末）。
+- 冒烟测试 83 项，当前 **83 通过 / 0 未通过**（见文末）。
 
 <a id="运行"></a>
 ## 运行
@@ -89,14 +89,21 @@ GET  /api/events                           SSE 实时事件流
 <a id="测试与已知问题"></a>
 ## 测试与已知问题
 
-`npm test` → **68 passed, 0 failed**（无头冒烟，零依赖）。
+`npm test` → **83 passed, 0 failed**（Node 25.6.1 本地验证，无头冒烟，零依赖）。测试使用独立临时数据目录并关闭模拟用户，不读取或重置默认 `.data` 目录。
+
+本轮新增 15 项 HTTP 回归断言，覆盖以下修复：
+
+- **举报请求体传递**：`POST /api/reports` 正确接收 `target` 和 `reason`，举报与陪审案件关联同一目标；移除裁决会将目标帖归档。
+- **异常路径处理**：无法解析的请求 URL 或路由参数返回 `400 {"error":"bad_path"}`，服务继续响应后续请求。覆盖非法百分号编码、无效 UTF-8 和异常 URL，同时验证合法编码参数与未知路由的正常行为。
+
+这些修复不会回填历史举报中已经丢失的字段。
 
 此前两项语义待定的断言已按"透明优先"口径修复：
 
 - `攻击票不影响票数` —— 被压制（suppressed）的攻击票现在计入 raw 计数（+1、保透明度），但不进入加权、平均置信度与经验占比；加权结论不受攻击干扰。
 - `相似历史决策（含结果）被召回` —— `opinions` 的 `vec` 原先给语料外词（OOV）赋了个会稀释查询向量的兜底权重，真匹配被压到阈值之下。现改为剔除语料外词（它们本就无法贡献相似度），0.12 阈值无需调整即可召回真实相关案例，无关文本（实测 0.10/0）仍不误召。
 
-全部 68 项覆盖：推流配额（dissent / explore / 赛道上限）、加权与降权、追问闭环、采纳 / 结果回流、危机与医疗分级、k-匿名切片、陪审团流程、治理权限、密钥轮换审计等。
+其余 68 项覆盖：推流配额（dissent / explore / 赛道上限）、加权与降权、追问闭环、采纳 / 结果回流、危机与医疗分级、k-匿名切片、陪审团流程、治理权限、密钥轮换审计等。
 
 ## 目录结构
 
@@ -115,7 +122,7 @@ server/
   taxonomy.js    标签树与建议级别
   seed.js        种子语料
 test/
-  smoke.js       无头冒烟测试（68 断言）
+  smoke.js       无头冒烟测试（83 断言）
 ```
 
 ## 免责
